@@ -6,10 +6,11 @@ func init() {
 	// 1.initial config
 	initialize.InitConfig()
 
-	//TODO 初始化日志
+	// 2.initial log
+	initialize.InitLog()
 
 	//TODO 初始化数据库连接
 
-	//TODO 初始化Gin框架引擎
+	// 4.initial gin
 	initialize.InitEngine()
 }

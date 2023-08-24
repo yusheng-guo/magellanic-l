@@ -8,8 +8,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 )
+
+//go:generate go env -w GO111MODULE=on
+//go:generate go env -w GOPROXY=https://goproxy.cn,direct
+//go:generate go mod tidy
+//go:generate go mod download
 
 func main() {
 	var err error
@@ -23,12 +29,12 @@ func main() {
 		Handler: global.App.Engine,
 	}
 	go func() {
-		if err = server.ListenAndServe(); err != nil {
+		if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
 		}
 	}()
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -36,4 +42,8 @@ func main() {
 		log.Fatalf("server shutdown failed:%+v\n", err)
 	}
 	log.Println("server shutdown")
+
+	global.DeferFuncList.Run() // 释放资源
+
+	global.App.Log.Info("hi")
 }
