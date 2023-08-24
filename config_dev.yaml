@@ -1,0 +1,27 @@
+database:
+  driver: 'mysql' # 数据库类型
+  db_name: 'nft_dev' # 数据库名称
+  host: '180.184.138.237'
+  port: 3306 # 端口
+  username: 'nft_dev' # 用户名
+  password: 'k4r35kbMa7Jr3dmc' # 密码
+  charset: 'utf8mb4' # 编码格式
+  timeout: 1000 # 超时时长 单位秒
+  maximum_connections: 100 # 最大连接数
+  minimum_connections: 10 # 最小连接数
+  idle_connection_timeout: 1000 # 空闲连接超时时间
+
+log:
+  level: # 日志等级
+  development: true # 是否为开发模式
+  disableCaller:
+  disableStacktrace:
+  sampling:
+  encoding: # "json" and "console"
+  encoderConfig:
+  outputPaths: /logs # "stdout" and "stderr"
+  errorOutputPaths:
+
+jwt:
+  ttl: 3600 # 单位: 秒
+  key: YK8qiPmwBYnc7vh0cvYryAiUd1mp9w0F9sfZqdN0IP4U3evgPquAm4yO+dmOsUa9 # 签名密钥 最长 64byte 128bit
