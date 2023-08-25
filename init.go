@@ -12,6 +12,8 @@ func init() {
 	//TODO 初始化数据库连接
 	//MongoDB TiDB DGraph Redis
 	initialize.InitMongoDB()
+	initialize.InitTiDB()
+	initialize.InitRedis()
 
 	// 4.initial gin
 	initialize.InitEngine()
