@@ -1,31 +1,29 @@
 package initialize
 
 import (
-	"fmt"
 	"github.com/yushengguo557/magellanic-l/global"
+	"go.elastic.co/ecszap"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"log"
+	"os"
 )
 
 // InitLog 初始化日志
 func InitLog() {
-	var err error
-	//log := global.App.Config.Log
-	zapConfig := zap.Config{
-		Level:             zap.NewAtomicLevelAt(zapcore.DebugLevel),
-		Development:       true,
-		DisableCaller:     false,
-		DisableStacktrace: false,
-		Sampling:          nil,
-		Encoding:          "json",
-		EncoderConfig:     zap.NewProductionEncoderConfig(),
-		OutputPaths:       []string{"stdout"},
-		ErrorOutputPaths:  []string{"stderr"},
-		InitialFields:     nil,
-	}
-	global.App.Log, err = zapConfig.Build()
-	if err != nil {
-		log.Panic(fmt.Errorf("init log, err: %w", err))
-	}
+	encoderConfig := ecszap.NewDefaultEncoderConfig()
+	core := ecszap.NewCore(encoderConfig, os.Stdout, zap.DebugLevel)
+	global.App.Log = zap.New(core, zap.AddCaller())
+
+	// 添加延迟函数 程序结束后执行
+	global.DeferFuncList.Push(
+		func() {
+			var err error
+			err = global.App.Log.Sync()
+			if err != nil {
+				log.Fatalf("zap logger sync, err:%+v\n", err)
+			}
+		})
+
+	// zap.ReplaceGlobals(logger)
+	// zap.L()
 }

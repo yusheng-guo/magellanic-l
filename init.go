@@ -6,10 +6,18 @@ func init() {
 	// 1.initial config
 	initialize.InitConfig()
 
-	//TODO 初始化日志
+	// 2.initial log
+	initialize.InitLog()
 
 	//TODO 初始化数据库连接
+	//MongoDB TiDB DGraph Redis
+	initialize.InitMongoDB()
+	initialize.InitTiDB()
+	initialize.InitRedis()
 
-	//TODO 初始化Gin框架引擎
+	//TODO 初始化消息队列 RabbitMQ
+	initialize.InitRabbitMQ()
+
+	// 4.initial gin
 	initialize.InitEngine()
 }
