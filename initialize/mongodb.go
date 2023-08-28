@@ -25,12 +25,14 @@ func InitMongoDB() {
 	}
 
 	// 3.close connect
-	global.DeferFuncList.Push(
-		func() {
-			if err = client.Disconnect(context.TODO()); err != nil {
-				log.Fatalln(fmt.Errorf("disconnect MongoDB, err: %w", err))
-			}
-		})
+	task := global.NewDeferTask(func(a ...any) {
+		var err error
+		err = a[0].(*mongo.Client).Disconnect(context.TODO())
+		if err != nil {
+			log.Fatalln("disconnect MongoDB, err:", err)
+		}
+	}, client)
+	global.DeferTaskQueue = append(global.DeferTaskQueue, task)
 
 	// 4.Send a ping to confirm a successful connection
 	if err := client.Database("admin").RunCommand(context.TODO(), bson.D{{"ping", 1}}).Err(); err != nil {

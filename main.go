@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -43,7 +44,19 @@ func main() {
 	}
 	log.Println("server shutdown")
 
-	global.DeferFuncList.Run() // 释放资源
-
+	// 释放资源
+	ReleaseResources()
 	global.App.Log.Info("hi")
+}
+
+func ReleaseResources() {
+	wg := sync.WaitGroup{}
+	for _, deferTask := range global.DeferTaskQueue {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			deferTask.Execute()
+		}()
+	}
+	wg.Wait()
 }

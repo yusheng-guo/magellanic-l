@@ -12,18 +12,19 @@ import (
 func InitLog() {
 	encoderConfig := ecszap.NewDefaultEncoderConfig()
 	core := ecszap.NewCore(encoderConfig, os.Stdout, zap.DebugLevel)
-	global.App.Log = zap.New(core, zap.AddCaller())
+	logger := zap.New(core, zap.AddCaller())
 
 	// 添加延迟函数 程序结束后执行
-	global.DeferFuncList.Push(
-		func() {
-			var err error
-			err = global.App.Log.Sync()
-			if err != nil {
-				log.Fatalf("zap logger sync, err:%+v\n", err)
-			}
-		})
+	task := global.NewDeferTask(func(a ...any) {
+		var err error
+		err = a[0].(*zap.Logger).Sync()
+		if err != nil {
+			log.Fatalf("zap logger sync, err:%+v\n", err)
+		}
+	}, logger)
+	global.DeferTaskQueue = append(global.DeferTaskQueue, task)
 
+	global.App.Log = logger
 	// zap.ReplaceGlobals(logger)
 	// zap.L()
 }

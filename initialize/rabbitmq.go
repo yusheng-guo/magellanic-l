@@ -14,17 +14,29 @@ func InitRabbitMQ() {
 	if err != nil {
 		log.Fatalln("connect to RabbitMQ, err:", err)
 	}
-	global.DeferFuncList.Push(func() {
-		conn.Close()
-	})
+
+	task1 := global.NewDeferTask(func(a ...any) {
+		var err error
+		err = a[0].(*amqp.Connection).Close()
+		if err != nil {
+			log.Fatalln("close RabbitMQ connect, err:", err)
+		}
+	}, conn)
+	global.DeferTaskQueue = append(global.DeferTaskQueue, task1)
 
 	ch, err := conn.Channel()
 	if err != nil {
 		log.Fatalln("open RabbitMQ channel, err:", err)
 	}
-	global.DeferFuncList.Push(func() {
-		ch.Close()
-	})
+
+	task2 := global.NewDeferTask(func(a ...any) {
+		var err error
+		err = a[0].(*amqp.Channel).Close()
+		if err != nil {
+			log.Fatalln("close RabbitMQ channel, err:", err)
+		}
+	}, ch)
+	global.DeferTaskQueue = append(global.DeferTaskQueue, task2)
 
 	q, err := ch.QueueDeclare(
 		"hello", // name

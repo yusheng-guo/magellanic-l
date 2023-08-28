@@ -20,6 +20,15 @@ func InitRedis() {
 		log.Fatalln("connect redis, err:", err)
 	}
 
+	task := global.NewDeferTask(func(a ...any) {
+		var err error
+		err = a[0].(*redis.Client).Close()
+		if err != nil {
+			log.Fatalln("close redis client, err:", err)
+		}
+	}, rdb)
+	global.DeferTaskQueue = append(global.DeferTaskQueue, task)
+
 	log.Println("You successfully connected to Redis!")
 	global.App.Redis = rdb
 }

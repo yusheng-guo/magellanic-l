@@ -23,13 +23,14 @@ func InitTiDB() {
 		log.Fatalln("connect database, err:", err)
 	}
 
-	global.DeferFuncList.Push(
-		func() {
-			err = db.Close()
-			if err != nil {
-				return
-			}
-		})
+	task := global.NewDeferTask(func(a ...any) {
+		var err error
+		err = a[0].(*sql.DB).Close()
+		if err != nil {
+			log.Fatalln("close TiDB client, err:", err)
+		}
+	}, db)
+	global.DeferTaskQueue = append(global.DeferTaskQueue, task)
 
 	var dbName string
 	err = db.QueryRow("SELECT DATABASE();").Scan(&dbName)
