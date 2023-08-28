@@ -13,6 +13,8 @@ func DefineRouter() {
 		v1.AddPing()
 
 		v1.AddAuth()
+
+		v1.AddWebSocket()
 	}
 
 }
