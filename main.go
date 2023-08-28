@@ -33,6 +33,7 @@ func main() {
 		if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
 		}
+		log.Println("listen:", server.Addr)
 	}()
 
 	quit := make(chan os.Signal, 1)
@@ -52,12 +53,13 @@ func main() {
 
 func ReleaseResources() {
 	wg := sync.WaitGroup{}
+	wg.Add(len(global.DeferTaskQueue))
 	for _, deferTask := range global.DeferTaskQueue {
-		wg.Add(1)
-		go func() {
+		go func(deferTask *global.DeferTask) {
 			defer wg.Done()
 			deferTask.Execute()
-		}()
+			log.Printf("%#v\n", deferTask.Params)
+		}(deferTask)
 	}
 	wg.Wait()
 }

@@ -24,7 +24,7 @@ func InitRedis() {
 		var err error
 		err = a[0].(*redis.Client).Close()
 		if err != nil {
-			log.Fatalln("close redis client, err:", err)
+			log.Println("close redis client, err:", err)
 		}
 	}, rdb)
 	global.DeferTaskQueue = append(global.DeferTaskQueue, task)

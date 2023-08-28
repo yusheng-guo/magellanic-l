@@ -19,7 +19,7 @@ func InitLog() {
 		var err error
 		err = a[0].(*zap.Logger).Sync()
 		if err != nil {
-			log.Fatalf("zap logger sync, err:%+v\n", err)
+			log.Println("zap logger sync, err:", err)
 		}
 	}, logger)
 	global.DeferTaskQueue = append(global.DeferTaskQueue, task)

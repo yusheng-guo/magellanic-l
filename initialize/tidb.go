@@ -27,7 +27,7 @@ func InitTiDB() {
 		var err error
 		err = a[0].(*sql.DB).Close()
 		if err != nil {
-			log.Fatalln("close TiDB client, err:", err)
+			log.Println("close TiDB client, err:", err)
 		}
 	}, db)
 	global.DeferTaskQueue = append(global.DeferTaskQueue, task)

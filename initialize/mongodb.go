@@ -15,7 +15,7 @@ func InitMongoDB() {
 	// 1.Use the SetServerAPIOptions() method to set the Stable API version to 1
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	opts := options.Client().
-		ApplyURI("mongodb+srv://yushengguo557:Hr8CKHgYhjInISpK@cluster0.zecytgm.mongodb.net/?retryWrites=true&w=majority").
+		ApplyURI("mongodb://mongo:8f4a4e91d3@119.91.204.226:27017/?retryWrites=true&w=majority").
 		SetServerAPIOptions(serverAPI)
 
 	// 2.Create a new client and connect to the server
@@ -29,14 +29,14 @@ func InitMongoDB() {
 		var err error
 		err = a[0].(*mongo.Client).Disconnect(context.TODO())
 		if err != nil {
-			log.Fatalln("disconnect MongoDB, err:", err)
+			log.Println("disconnect MongoDB, err:", err)
 		}
 	}, client)
 	global.DeferTaskQueue = append(global.DeferTaskQueue, task)
 
 	// 4.Send a ping to confirm a successful connection
 	if err := client.Database("admin").RunCommand(context.TODO(), bson.D{{"ping", 1}}).Err(); err != nil {
-		log.Fatalln(fmt.Errorf("ping, err: %w", err))
+		log.Fatalln(fmt.Errorf("ping MongoDB, err: %w", err))
 	}
 	log.Println("You successfully connected to MongoDB!")
 

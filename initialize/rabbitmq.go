@@ -19,7 +19,7 @@ func InitRabbitMQ() {
 		var err error
 		err = a[0].(*amqp.Connection).Close()
 		if err != nil {
-			log.Fatalln("close RabbitMQ connect, err:", err)
+			log.Println("close RabbitMQ connect, err:", err)
 		}
 	}, conn)
 	global.DeferTaskQueue = append(global.DeferTaskQueue, task1)
@@ -33,7 +33,7 @@ func InitRabbitMQ() {
 		var err error
 		err = a[0].(*amqp.Channel).Close()
 		if err != nil {
-			log.Fatalln("close RabbitMQ channel, err:", err)
+			log.Println("close RabbitMQ channel, err:", err)
 		}
 	}, ch)
 	global.DeferTaskQueue = append(global.DeferTaskQueue, task2)
