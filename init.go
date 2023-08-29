@@ -15,8 +15,11 @@ func init() {
 	initialize.InitTiDB()
 	initialize.InitRedis()
 
-	//TODO 初始化消息队列 RabbitMQ
+	// 3.初始化消息队列 RabbitMQ
 	initialize.InitRabbitMQ()
+
+	// 初始化 websocket 管理器
+	initialize.InitWebSocketManager()
 
 	// 4.initial gin
 	initialize.InitEngine()

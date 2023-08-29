@@ -11,6 +11,14 @@ type Client struct {
 	Conn *websocket.Conn // websocket连接
 }
 
+// NewClient 实例化一个 WebSocket 客户端
+func NewClient(uid string, conn *websocket.Conn) *Client {
+	return &Client{
+		UID:  uid,
+		Conn: conn,
+	}
+}
+
 // Write 向客户端中写入信息
 func (c *Client) Write(msg Message) error {
 	err := websocket.Message.Send(c.Conn, msg)

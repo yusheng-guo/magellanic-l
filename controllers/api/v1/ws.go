@@ -1,36 +1,18 @@
 package v1
 
 import (
-	"fmt"
+	"errors"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/net/websocket"
+	"github.com/yushengguo557/magellanic-l/common/response"
+	"github.com/yushengguo557/magellanic-l/service/ws"
 )
 
 func WebSocket(c *gin.Context) {
-	handler := websocket.Handler(Echo)
-	handler.ServeHTTP(c.Writer, c.Request)
-}
-
-func Echo(conn *websocket.Conn) {
-	defer conn.Close()
-	var err error
-
-	for {
-		var reply string
-
-		if err = websocket.Message.Receive(conn, &reply); err != nil {
-			fmt.Println("Can't receive")
-			break
-		}
-
-		fmt.Println("Received back from client: " + reply)
-
-		msg := reply
-		fmt.Println("Sending to client: " + msg)
-
-		if err = websocket.Message.Send(conn, msg); err != nil {
-			fmt.Println("Can't send")
-			break
-		}
+	//handler := websocket.Handler(ws.Echo)
+	uid, exists := c.Get("uid")
+	if !exists {
+		response.Failed(c, errors.New("unable to get user id from context"))
 	}
+	ws.WebSocketHandel(uid.(string), c.Writer, c.Request)
+
 }

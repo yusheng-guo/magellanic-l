@@ -2,6 +2,7 @@ package ws
 
 import (
 	"github.com/yushengguo557/magellanic-l/global"
+	"go.uber.org/zap"
 )
 
 // WebSocketManager websocket管理器
@@ -21,12 +22,22 @@ func NewWebSocketManager(cap int) *WebSocketManager {
 	}
 }
 
-// Register 使用 WebSocketManager 对 client 进行管理
+// Register 使用 WebSocketManager 对 client 进行管理 & 接收客户端发送过来的所有消息
 func (m *WebSocketManager) Register(client *Client) {
+	go func() {
+		for {
+			msg, err := client.Read()
+			if err != nil {
+				global.App.Log.Error("read data from client", zap.Any("err", err))
+				continue
+			}
+			m.Messages <- msg
+		}
+	}()
 	m.Clients[client.UID] = client
 }
 
-// Logout 取消 WebSocketManager 对 client 的管理
+// Logout 取消 WebSocketManager 对 client 的管理 & 从所有频道中移除该客户端
 func (m *WebSocketManager) Logout(uid string) {
 	delete(m.Clients, uid)
 
@@ -41,6 +52,13 @@ func (m *WebSocketManager) Broadcast(msg Message) (err error) {
 		err = c.Write(msg)
 	}
 	return err
+}
+
+// ReceiveMessage 接收消息
+func (m *WebSocketManager) ReceiveMessage() {
+	//for  {
+	//
+	//}
 }
 
 // HandlerMessage 处理消息
