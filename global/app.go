@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/yushengguo557/magellanic-l/config"
+	"github.com/yushengguo557/magellanic-l/service/ws"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
 )
@@ -12,10 +13,11 @@ import (
 var App = new(Application)
 
 type Application struct {
-	Config  config.Configuration
-	Log     *zap.Logger
-	Engine  *gin.Engine
-	MongoDB *mongo.Client
-	TiDB    *sql.DB
-	Redis   *redis.Client
+	Config           config.Configuration
+	Log              *zap.Logger
+	Engine           *gin.Engine
+	MongoDB          *mongo.Client
+	TiDB             *sql.DB
+	Redis            *redis.Client
+	WebSocketManager *ws.WebSocketManager
 }
