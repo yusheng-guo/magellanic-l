@@ -21,7 +21,7 @@ func NewClient(uid string, conn *websocket.Conn) *Client {
 
 // Write 向客户端中写入信息
 func (c *Client) Write(msg Message) error {
-	err := websocket.Message.Send(c.Conn, msg)
+	err := websocket.JSON.Send(c.Conn, msg)
 	if err != nil {
 		return fmt.Errorf("send message to [%#v], err: %w", c, err)
 	}
@@ -31,10 +31,11 @@ func (c *Client) Write(msg Message) error {
 // Read 接收消息
 func (c *Client) Read() (Message, error) {
 	var msg Message
-	err := websocket.Message.Receive(c.Conn, &msg)
+	err := websocket.JSON.Receive(c.Conn, &msg)
 	if err != nil {
 		return Message{}, fmt.Errorf("receive from [%#v], err: %w", c, err)
 	}
+	msg.From = c.UID
 	return msg, nil
 }
 

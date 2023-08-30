@@ -1,14 +1,15 @@
-package ws
+package service
 
 import (
 	"github.com/yushengguo557/magellanic-l/global"
+	"github.com/yushengguo557/magellanic-l/service/ws"
 	"golang.org/x/net/websocket"
 	"net/http"
 )
 
 func WebSocketHandel(uid string, w http.ResponseWriter, req *http.Request) {
 	websocket.Handler(func(conn *websocket.Conn) {
-		client := NewClient(uid, conn)
+		client := ws.NewClient(uid, conn)
 		global.App.WebSocketManager.Register(client)
 	}).ServeHTTP(w, req)
 }

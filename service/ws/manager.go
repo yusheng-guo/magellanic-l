@@ -1,8 +1,8 @@
 package ws
 
 import (
-	"github.com/yushengguo557/magellanic-l/global"
-	"go.uber.org/zap"
+	"fmt"
+	"log"
 )
 
 // WebSocketManager websocket管理器
@@ -24,17 +24,18 @@ func NewWebSocketManager(cap int) *WebSocketManager {
 
 // Register 使用 WebSocketManager 对 client 进行管理 & 接收客户端发送过来的所有消息
 func (m *WebSocketManager) Register(client *Client) {
-	go func() {
-		for {
-			msg, err := client.Read()
-			if err != nil {
-				global.App.Log.Error("read data from client", zap.Any("err", err))
-				continue
-			}
-			m.Messages <- msg
-		}
-	}()
 	m.Clients[client.UID] = client
+	for {
+		fmt.Printf("online population: %d\r", len(m.Clients))
+		msg, err := client.Read()
+		if err != nil {
+			log.Println("read data when registering, err:", err)
+			// 注销客户端 退出循环
+			m.Logout(client.UID)
+			break
+		}
+		m.Messages <- msg
+	}
 }
 
 // Logout 取消 WebSocketManager 对 client 的管理 & 从所有频道中移除该客户端
@@ -77,7 +78,7 @@ func (m *WebSocketManager) HandlerMessage() {
 			} else {
 				echo = NewMessage(MessageTypeRegister, []byte("failed"), "", msg.From)
 			}
-			err = m.Clients[msg.To].Write(msg)
+			err = m.Clients[echo.To].Write(echo)
 		case MessageTypeLogout:
 			if m.IsManaged(msg.From) {
 				m.Logout(msg.From)
@@ -85,7 +86,7 @@ func (m *WebSocketManager) HandlerMessage() {
 		case MessageTypeHeartbeat:
 			if m.IsManaged(msg.From) {
 				echo = NewMessage(MessageTypeHeartbeat, []byte("success"), "", msg.From)
-				err = m.Clients[msg.From].Write(echo)
+				err = m.Clients[echo.To].Write(echo)
 			}
 		case MessageTypeOneToOne:
 			// TODO: 私聊
@@ -97,9 +98,15 @@ func (m *WebSocketManager) HandlerMessage() {
 			if m.IsManaged(msg.To) {
 				err = m.Clients[msg.To].Write(msg)
 			}
+		default:
+			echo = NewMessage(MessageTypeEcho, []byte("format err, can't parse"), "", msg.From)
+			err = m.Clients[echo.To].Write(echo)
 		}
 		if err != nil {
-			global.App.Log.Error(err.Error())
+			// 避免循环引用
+			//global.App.Log.Error(err.Error())
+			//zap.L().Error(err.Error())
+			log.Println("handle message, err:", err)
 		}
 	}
 }

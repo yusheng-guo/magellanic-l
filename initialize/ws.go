@@ -3,6 +3,7 @@ package initialize
 import (
 	"github.com/yushengguo557/magellanic-l/global"
 	"github.com/yushengguo557/magellanic-l/service/ws"
+	"log"
 )
 
 const MessageChannelCapacity = 1024
@@ -19,4 +20,6 @@ func InitWebSocketManager() {
 
 	// 3.赋值到全局变量
 	global.App.WebSocketManager = manager
+
+	log.Println("You successfully init websocket manager!")
 }
