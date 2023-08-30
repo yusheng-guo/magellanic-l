@@ -39,6 +39,10 @@ func (m *WebSocketManager) Register(client *Client) {
 
 // Logout 取消 WebSocketManager 对 client 的管理 & 从所有频道中移除该客户端
 func (m *WebSocketManager) Logout(uid string) {
+	// 1.关闭连接
+	m.Clients[uid].Conn.Close()
+
+	// 2.移除管理
 	delete(m.Clients, uid)
 
 	for _, ch := range m.Channels {
@@ -64,29 +68,35 @@ func (m *WebSocketManager) ReceiveMessage() {
 // HandlerMessage 处理消息
 func (m *WebSocketManager) HandlerMessage() {
 	var err error
+	var echo Message
 	for msg := range m.Messages {
 		switch msg.Type {
 		case MessageTypeRegister:
 			if m.IsManaged(msg.From) {
-				//m.Register(m.Clients[msg.From])
+				echo = NewMessage(MessageTypeRegister, []byte("success"), "", msg.From)
 			} else {
-				m.PushMessage(msg)
+				echo = NewMessage(MessageTypeRegister, []byte("failed"), "", msg.From)
 			}
+			err = m.Clients[msg.To].Write(msg)
 		case MessageTypeLogout:
 			if m.IsManaged(msg.From) {
 				m.Logout(msg.From)
-			} else {
-				m.PushMessage(msg)
 			}
 		case MessageTypeHeartbeat:
-			echo := NewMessage(MessageTypeHeartbeat, []byte("success"), "", msg.From)
-			err = m.Clients[msg.From].Write(echo)
+			if m.IsManaged(msg.From) {
+				echo = NewMessage(MessageTypeHeartbeat, []byte("success"), "", msg.From)
+				err = m.Clients[msg.From].Write(echo)
+			}
 		case MessageTypeOneToOne:
 			// TODO: 私聊
 		case MessageTypeChannel:
-			err = m.Channels[msg.To].Write(msg)
+			// err = m.Channels[msg.To].Write(msg)
 		case MessageTypeBroadcast:
 			err = m.Broadcast(msg)
+		case MessageTypeEcho:
+			if m.IsManaged(msg.To) {
+				err = m.Clients[msg.To].Write(msg)
+			}
 		}
 		if err != nil {
 			global.App.Log.Error(err.Error())
