@@ -36,7 +36,7 @@ func InitRabbitMQ() {
 	}, ch)
 	global.DeferTaskQueue = append(global.DeferTaskQueue, task2)
 
-	global.App.MQ = ch
+	global.App.MQChannel = ch
 	log.Println("You successfully connected to RabbitMQ!")
 
 	//q, err := ch.QueueDeclare(

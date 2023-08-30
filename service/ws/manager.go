@@ -1,24 +1,90 @@
 package ws
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/yushengguo557/magellanic-l/global"
 	"log"
+	"time"
 )
 
 // WebSocketManager websocket管理器
 type WebSocketManager struct {
-	Clients  map[string]*Client
-	Channels map[string]*Channel
-	Messages chan Message
+	Clients      map[string]*Client
+	Channels     map[string]*Channel
+	Messages     chan Message
+	MessageQueue MessageQueue
+}
+
+type MessageQueue struct {
+	amqp.Queue
+}
+
+// Publish 发送消息
+func (mq *MessageQueue) Publish(msg Message) {
+	body, err := json.Marshal(msg)
+	if err != nil {
+		log.Fatalln("marshal message, err:", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	err = global.App.MQChannel.PublishWithContext(
+		ctx,
+		"",      // exchange
+		mq.Name, // routing key
+		false,   // mandatory
+		false,   // immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+		})
+	if err != nil {
+		log.Println("publish message to message queue, err:", err)
+	}
+	cancel()
+}
+
+// Consume 消费消息
+func (mq *MessageQueue) Consume() error {
+	msgs, err := global.App.MQChannel.Consume(
+		global.App.WebSocketManager.MessageQueue.Name, // queue
+		"",    // consumer
+		true,  // auto-ack
+		false, // exclusive
+		false, // no-local
+		false, // no-wait
+		nil,   // args
+	)
+	if err != nil {
+		return fmt.Errorf("register a consumer, err:%w", err)
+	}
+	for d := range msgs {
+		log.Printf("Received a message: %s", d.Body)
+	}
+	return nil
 }
 
 // NewWebSocketManager 实例化websocket管理器
 // cap: 消息通道容量
 func NewWebSocketManager(cap int) *WebSocketManager {
+	// wsmq: websocket message queue
+	wsmq, err := global.App.MQChannel.QueueDeclare(
+		"websocket-messages", // name
+		false,                // durable
+		false,                // delete when unused
+		false,                // exclusive
+		false,                // no-wait
+		nil,                  // arguments
+	)
+	if err != nil {
+		log.Fatalln("queue declare, err:", err)
+	}
 	return &WebSocketManager{
-		Clients:  make(map[string]*Client),
-		Channels: make(map[string]*Channel),
-		Messages: make(chan Message, cap),
+		Clients:      make(map[string]*Client),
+		Channels:     make(map[string]*Channel),
+		Messages:     make(chan Message, cap),
+		MessageQueue: MessageQueue{wsmq},
 	}
 }
 
@@ -35,6 +101,7 @@ func (m *WebSocketManager) Register(client *Client) {
 			break
 		}
 		m.Messages <- msg
+		m.MessageQueue.Publish(msg)
 	}
 }
 
@@ -60,10 +127,8 @@ func (m *WebSocketManager) Broadcast(msg Message) (err error) {
 }
 
 // ReceiveMessage 接收消息
-func (m *WebSocketManager) ReceiveMessage() {
-	//for  {
-	//
-	//}
+func (m *WebSocketManager) ReceiveMessage() error {
+	return nil
 }
 
 // HandlerMessage 处理消息

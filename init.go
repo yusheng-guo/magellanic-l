@@ -9,18 +9,18 @@ func init() {
 	// 2.initial log
 	initialize.InitLog()
 
-	//TODO 初始化数据库连接
+	// 3.initial database
 	//MongoDB TiDB DGraph Redis
 	initialize.InitMongoDB()
 	initialize.InitTiDB()
 	initialize.InitRedis()
 
-	// 3.初始化消息队列 RabbitMQ
+	// 4.initial RabbitMQ
 	initialize.InitRabbitMQ()
 
-	// 初始化 websocket 管理器
+	// 5.initial websocket manager
 	initialize.InitWebSocketManager()
 
-	// 4.initial gin
+	// 5.initial gin
 	initialize.InitEngine()
 }

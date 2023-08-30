@@ -21,5 +21,5 @@ type Application struct {
 	TiDB             *sql.DB
 	Redis            *redis.Client
 	WebSocketManager *ws.WebSocketManager
-	MQ               *amqp.Channel
+	MQChannel        *amqp.Channel
 }
