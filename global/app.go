@@ -3,6 +3,7 @@ package global
 import (
 	"database/sql"
 	"github.com/gin-gonic/gin"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
 	"github.com/yushengguo557/magellanic-l/config"
 	"github.com/yushengguo557/magellanic-l/service/ws"
@@ -20,4 +21,5 @@ type Application struct {
 	TiDB             *sql.DB
 	Redis            *redis.Client
 	WebSocketManager *ws.WebSocketManager
+	MQ               *amqp.Channel
 }
