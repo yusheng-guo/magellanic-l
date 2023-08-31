@@ -4,83 +4,140 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/yushengguo557/magellanic-l/global"
 	"log"
 	"time"
 )
 
+const (
+	ExchangeName = "websocket-messages-router"
+	ExchangeType = "direct"
+
+	QueueName = "websocket-messages-queue"
+
+	WebSocketClientToServerMap = "websocket-client-to-server-map"
+)
+
 // WebSocketManager websocket管理器
 type WebSocketManager struct {
+	ID           string
 	Clients      map[string]*Client
 	Channels     map[string]*Channel
-	Messages     chan Message
-	MessageQueue MessageQueue
+	Messages     chan Message // 消息处理通道
+	MessageQueue MessageQueue // 当前服务器独占的消息队列 用于接收来自其他服务器发送的 websocket 消息
 }
 
 type MessageQueue struct {
 	amqp.Queue
 }
 
-// Publish 发送消息
-func (mq *MessageQueue) Publish(msg Message) {
+// Publish 发送消息 wid => websocket id;
+func (mq *MessageQueue) Publish(wid string, msg Message) {
 	body, err := json.Marshal(msg)
 	if err != nil {
 		log.Fatalln("marshal message, err:", err)
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	err = global.App.MQChannel.PublishWithContext(
 		ctx,
-		"",      // exchange
-		mq.Name, // routing key
-		false,   // mandatory
-		false,   // immediate
+		ExchangeName, // exchange
+		wid,          // routing key
+		false,        // mandatory
+		false,        // immediate
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        body,
-		})
+		},
+	)
 	if err != nil {
 		log.Println("publish message to message queue, err:", err)
 	}
-	cancel()
 }
 
 // Consume 消费消息
-func (mq *MessageQueue) Consume() error {
-	msgs, err := global.App.MQChannel.Consume(
-		global.App.WebSocketManager.MessageQueue.Name, // queue
-		"",    // consumer
-		true,  // auto-ack
-		false, // exclusive
-		false, // no-local
-		false, // no-wait
-		nil,   // args
+func (mq *MessageQueue) Consume() (msgs chan Message, err error) {
+	var ch = global.App.MQChannel
+	var delivery <-chan amqp.Delivery
+	var msg Message
+
+	delivery, err = ch.Consume(
+		mq.Name, // queue
+		"",      // consumer
+		false,   // auto-ack 消息确认
+		false,   // exclusive
+		false,   // no-local
+		false,   // no-wait
+		nil,     // args
 	)
 	if err != nil {
-		return fmt.Errorf("register a consumer, err:%w", err)
+		return nil, fmt.Errorf("register a consumer, err: %w", err)
 	}
-	for d := range msgs {
-		log.Printf("Received a message: %s", d.Body)
-	}
-	return nil
+
+	go func() {
+		for d := range delivery {
+			if err = json.Unmarshal(d.Body, &msg); err != nil {
+				log.Fatalln("unmarshal ")
+			}
+			msgs <- msg
+		}
+	}()
+	return msgs, nil
 }
 
 // NewWebSocketManager 实例化websocket管理器
 // cap: 消息通道容量
 func NewWebSocketManager(cap int) *WebSocketManager {
-	// wsmq: websocket message queue
-	wsmq, err := global.App.MQChannel.QueueDeclare(
-		"websocket-messages", // name
-		false,                // durable
-		false,                // delete when unused
-		false,                // exclusive
-		false,                // no-wait
-		nil,                  // arguments
+	var err error
+	var ch = global.App.MQChannel
+	var id = uuid.NewString()
+
+	// 1.声明交换机
+	err = ch.ExchangeDeclare(
+		ExchangeName, // name
+		ExchangeType, // type
+		true,         // durable
+		false,        // auto-deleted
+		false,        // internal
+		false,        // no-wait
+		nil,          // arguments
 	)
 	if err != nil {
 		log.Fatalln("queue declare, err:", err)
 	}
+
+	// 2.声明消息队列
+	// wsmq: websocket message queue
+	wsmq, err := ch.QueueDeclare(
+		QueueName+"-"+id, // name
+		false,            // durable
+		false,            // delete when unused
+		true,             // exclusive
+		false,            // no-wait
+		nil,              // arguments
+	)
+	if err != nil {
+		log.Fatalln("queue declare, err:", err)
+	}
+
+	// 3.消息队列与交换机进行绑定
+	err = ch.QueueBind(
+		wsmq.Name,    // queue name
+		id,           // routing key
+		ExchangeName, // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Fatalln("queue bind, err:", err)
+	}
+
 	return &WebSocketManager{
+		ID:           id,
 		Clients:      make(map[string]*Client),
 		Channels:     make(map[string]*Channel),
 		Messages:     make(chan Message, cap),
@@ -90,18 +147,32 @@ func NewWebSocketManager(cap int) *WebSocketManager {
 
 // Register 使用 WebSocketManager 对 client 进行管理 & 接收客户端发送过来的所有消息
 func (m *WebSocketManager) Register(client *Client) {
+	var rdb = global.App.Redis
+	var ret string
+	var err error
+	var msg Message
+
+	// 1.保存 client -> manager id 映射 & client uid -> client 映射
+	rdb.HSet(context.Background(), WebSocketClientToServerMap, client.UID, m.ID)
 	m.Clients[client.UID] = client
 	for {
 		fmt.Printf("online population: %d\r", len(m.Clients))
-		msg, err := client.Read()
+		msg, err = client.Read()
 		if err != nil {
 			log.Println("read data when registering, err:", err)
 			// 注销客户端 退出循环
 			m.Logout(client.UID)
 			break
 		}
-		m.Messages <- msg
-		m.MessageQueue.Publish(msg)
+		ret, err = rdb.HGet(context.Background(), WebSocketClientToServerMap, msg.To).Result()
+		if err != nil {
+			return
+		}
+		if ret == m.ID {
+			m.Messages <- msg
+		} else {
+			m.MessageQueue.Publish(msg.To, msg)
+		}
 	}
 }
 
@@ -113,8 +184,15 @@ func (m *WebSocketManager) Logout(uid string) {
 	// 2.移除管理
 	delete(m.Clients, uid)
 
+	// 3.移出频道
 	for _, ch := range m.Channels {
 		delete(ch.Members, uid)
+	}
+
+	// 4.删除映射
+	val := global.App.Redis.HDel(context.Background(), WebSocketClientToServerMap, uid).Val()
+	if val != 1 {
+		log.Printf("failed delete client [%s] in redis\n", uid)
 	}
 }
 
@@ -127,8 +205,15 @@ func (m *WebSocketManager) Broadcast(msg Message) (err error) {
 }
 
 // ReceiveMessage 接收消息
-func (m *WebSocketManager) ReceiveMessage() error {
-	return nil
+func (m *WebSocketManager) ReceiveMessage() {
+	msgs, err := m.MessageQueue.Consume()
+	if err != nil {
+		log.Fatalln("receive message, err:", err)
+	}
+
+	for msg := range msgs {
+		m.Messages <- msg
+	}
 }
 
 // HandlerMessage 处理消息
@@ -168,9 +253,6 @@ func (m *WebSocketManager) HandlerMessage() {
 			err = m.Clients[echo.To].Write(echo)
 		}
 		if err != nil {
-			// 避免循环引用
-			//global.App.Log.Error(err.Error())
-			//zap.L().Error(err.Error())
 			log.Println("handle message, err:", err)
 		}
 	}

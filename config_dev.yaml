@@ -25,3 +25,7 @@ log:
 jwt:
   ttl: 3600 # 单位: 秒
   key: YK8qiPmwBYnc7vh0cvYryAiUd1mp9w0F9sfZqdN0IP4U3evgPquAm4yO+dmOsUa9 # 签名密钥 最长 64byte 128bit
+
+server:
+  id: "abc"
+  port:
