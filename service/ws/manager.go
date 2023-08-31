@@ -147,52 +147,62 @@ func NewWebSocketManager(cap int) *WebSocketManager {
 
 // Register 使用 WebSocketManager 对 client 进行管理 & 接收客户端发送过来的所有消息
 func (m *WebSocketManager) Register(client *Client) {
+	defer m.Logout(client.UID) // 注销客户端
+
 	var rdb = global.App.Redis
 	var ret string
 	var err error
 	var msg Message
 
-	// 1.保存 client -> manager id 映射 & client uid -> client 映射
-	rdb.HSet(context.Background(), WebSocketClientToServerMap, client.UID, m.ID)
+	// 1.添加 client -> manager id 映射 & client uid -> client 映射
+	err = rdb.HSet(context.Background(), WebSocketClientToServerMap, client.UID, m.ID).Err()
+	if err != nil {
+		log.Fatalf("set client [%s] = manager [%s], err: %s\n", client.UID, m.ID, err)
+	}
+
 	m.Clients[client.UID] = client
+
+	// 2.读取来自客户端的消息 & 进行分发 (发布到消息队列 or 当前管理器的消息通道)
 	for {
 		fmt.Printf("online population: %d\r", len(m.Clients))
 		msg, err = client.Read()
-		if err != nil {
+		if err != nil { // 退出循环
 			log.Println("read data when registering, err:", err)
-			// 注销客户端 退出循环
-			m.Logout(client.UID)
 			break
 		}
 		ret, err = rdb.HGet(context.Background(), WebSocketClientToServerMap, msg.To).Result()
 		if err != nil {
-			return
+			log.Fatalf("get manager of client [%s], err: %s\n", client.UID, err)
 		}
 		if ret == m.ID {
 			m.Messages <- msg
 		} else {
-			m.MessageQueue.Publish(msg.To, msg)
+			m.MessageQueue.Publish(ret, msg)
 		}
 	}
 }
 
 // Logout 取消 WebSocketManager 对 client 的管理 & 从所有频道中移除该客户端
 func (m *WebSocketManager) Logout(uid string) {
-	// 1.关闭连接
-	m.Clients[uid].Conn.Close()
-
-	// 2.移除管理
-	delete(m.Clients, uid)
-
-	// 3.移出频道
-	for _, ch := range m.Channels {
-		delete(ch.Members, uid)
-	}
-
-	// 4.删除映射
+	// 1.删除映射
 	val := global.App.Redis.HDel(context.Background(), WebSocketClientToServerMap, uid).Val()
 	if val != 1 {
 		log.Printf("failed delete client [%s] in redis\n", uid)
+	}
+
+	// 2.关闭连接
+	if m.IsManaged(uid) {
+		m.Clients[uid].Conn.Close()
+	} else {
+		log.Printf("client [%s] has closed\n", uid)
+	}
+
+	// 3.移除管理
+	delete(m.Clients, uid)
+
+	// 4.移出频道
+	for _, ch := range m.Channels {
+		delete(ch.Members, uid)
 	}
 }
 
