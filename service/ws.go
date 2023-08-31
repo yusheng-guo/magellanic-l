@@ -10,7 +10,9 @@ import (
 func WebSocketHandel(uid string, w http.ResponseWriter, req *http.Request) {
 	websocket.Handler(func(conn *websocket.Conn) {
 		client := ws.NewClient(uid, conn)
-		global.App.WebSocketManager.Register(client)
+		manager := global.App.WebSocketManager
+		manager.Register(client) // 注册客户端
+		manager.Logout(uid)      // 注销客户端
 	}).ServeHTTP(w, req)
 }
 

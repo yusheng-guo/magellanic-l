@@ -1,14 +1,10 @@
 package ws
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/yushengguo557/magellanic-l/global"
+	"github.com/redis/go-redis/v9"
 	"log"
-	"time"
+	"sync"
 )
 
 const (
@@ -16,150 +12,43 @@ const (
 	ExchangeType = "direct"
 
 	QueueName = "websocket-messages-queue"
-
-	WebSocketClientToServerMap = "websocket-client-to-server-map"
 )
 
 // WebSocketManager websocket管理器
 type WebSocketManager struct {
-	ID           string
-	Clients      map[string]*Client
-	Channels     map[string]*Channel
-	Messages     chan Message // 消息处理通道
-	MessageQueue MessageQueue // 当前服务器独占的消息队列 用于接收来自其他服务器发送的 websocket 消息
-}
-
-type MessageQueue struct {
-	amqp.Queue
-}
-
-// Publish 发送消息 wid => websocket id;
-func (mq *MessageQueue) Publish(wid string, msg Message) {
-	body, err := json.Marshal(msg)
-	if err != nil {
-		log.Fatalln("marshal message, err:", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = global.App.MQChannel.PublishWithContext(
-		ctx,
-		ExchangeName, // exchange
-		wid,          // routing key
-		false,        // mandatory
-		false,        // immediate
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        body,
-		},
-	)
-	if err != nil {
-		log.Println("publish message to message queue, err:", err)
-	}
-}
-
-// Consume 消费消息
-func (mq *MessageQueue) Consume() (msgs chan Message, err error) {
-	var ch = global.App.MQChannel
-	var delivery <-chan amqp.Delivery
-	var msg Message
-
-	delivery, err = ch.Consume(
-		mq.Name, // queue
-		"",      // consumer
-		false,   // auto-ack 消息确认
-		false,   // exclusive
-		false,   // no-local
-		false,   // no-wait
-		nil,     // args
-	)
-	if err != nil {
-		return nil, fmt.Errorf("register a consumer, err: %w", err)
-	}
-
-	go func() {
-		for d := range delivery {
-			if err = json.Unmarshal(d.Body, &msg); err != nil {
-				log.Fatalln("unmarshal ")
-			}
-			msgs <- msg
-		}
-	}()
-	return msgs, nil
+	ID                string
+	Clients           map[string]*Client
+	Channels          map[string]*Channel
+	Messages          chan Message      // 消息处理通道
+	MessageQueue      MessageQueue      // 当前服务器独占的消息队列 用于接收来自其他服务器发送的 websocket 消息
+	ClientToServerMap ClientToServerMap // 客户端 到 管理器的映射 服务于消息队列
+	Lock              sync.RWMutex
 }
 
 // NewWebSocketManager 实例化websocket管理器
 // cap: 消息通道容量
-func NewWebSocketManager(cap int) *WebSocketManager {
-	var err error
-	var ch = global.App.MQChannel
-	var id = uuid.NewString()
-
-	// 1.声明交换机
-	err = ch.ExchangeDeclare(
-		ExchangeName, // name
-		ExchangeType, // type
-		true,         // durable
-		false,        // auto-deleted
-		false,        // internal
-		false,        // no-wait
-		nil,          // arguments
-	)
-	if err != nil {
-		log.Fatalln("queue declare, err:", err)
-	}
-
-	// 2.声明消息队列
-	// wsmq: websocket message queue
-	wsmq, err := ch.QueueDeclare(
-		QueueName+"-"+id, // name
-		false,            // durable
-		false,            // delete when unused
-		true,             // exclusive
-		false,            // no-wait
-		nil,              // arguments
-	)
-	if err != nil {
-		log.Fatalln("queue declare, err:", err)
-	}
-
-	// 3.消息队列与交换机进行绑定
-	err = ch.QueueBind(
-		wsmq.Name,    // queue name
-		id,           // routing key
-		ExchangeName, // exchange
-		false,
-		nil,
-	)
-	if err != nil {
-		log.Fatalln("queue bind, err:", err)
-	}
-
+func NewWebSocketManager(id string, cap int, rdb *redis.Client, mq MessageQueue) *WebSocketManager {
 	return &WebSocketManager{
-		ID:           id,
-		Clients:      make(map[string]*Client),
-		Channels:     make(map[string]*Channel),
-		Messages:     make(chan Message, cap),
-		MessageQueue: MessageQueue{wsmq},
+		ID:                id,
+		Clients:           make(map[string]*Client),
+		Channels:          make(map[string]*Channel),
+		Messages:          make(chan Message, cap),
+		MessageQueue:      mq,
+		ClientToServerMap: ClientToServerMap{rdb},
 	}
 }
 
 // Register 使用 WebSocketManager 对 client 进行管理 & 接收客户端发送过来的所有消息
 func (m *WebSocketManager) Register(client *Client) {
-	defer m.Logout(client.UID) // 注销客户端
-
-	var rdb = global.App.Redis
 	var ret string
 	var err error
 	var msg Message
 
 	// 1.添加 client -> manager id 映射 & client uid -> client 映射
-	err = rdb.HSet(context.Background(), WebSocketClientToServerMap, client.UID, m.ID).Err()
+	err = m.ClientToServerMap.Set(client.UID, m.ID)
 	if err != nil {
-		log.Fatalf("set client [%s] = manager [%s], err: %s\n", client.UID, m.ID, err)
+		log.Panic(err)
 	}
-
 	m.Clients[client.UID] = client
 
 	// 2.读取来自客户端的消息 & 进行分发 (发布到消息队列 or 当前管理器的消息通道)
@@ -170,9 +59,10 @@ func (m *WebSocketManager) Register(client *Client) {
 			log.Println("read data when registering, err:", err)
 			break
 		}
-		ret, err = rdb.HGet(context.Background(), WebSocketClientToServerMap, msg.To).Result()
+		ret, err = m.ClientToServerMap.Get(msg.To)
 		if err != nil {
-			log.Fatalf("get manager of client [%s], err: %s\n", client.UID, err)
+			log.Println("get manager from client to server map, err:", err)
+			break
 		}
 		if ret == m.ID {
 			m.Messages <- msg
@@ -185,10 +75,7 @@ func (m *WebSocketManager) Register(client *Client) {
 // Logout 取消 WebSocketManager 对 client 的管理 & 从所有频道中移除该客户端
 func (m *WebSocketManager) Logout(uid string) {
 	// 1.删除映射
-	val := global.App.Redis.HDel(context.Background(), WebSocketClientToServerMap, uid).Val()
-	if val != 1 {
-		log.Printf("failed delete client [%s] in redis\n", uid)
-	}
+	m.ClientToServerMap.Del(uid)
 
 	// 2.关闭连接
 	if m.IsManaged(uid) {

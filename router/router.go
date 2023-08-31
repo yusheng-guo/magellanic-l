@@ -15,6 +15,7 @@ func DefineRouter() {
 		v1.AddAuth()
 
 		v1.AddWebSocket()
+
 	}
 
 }
