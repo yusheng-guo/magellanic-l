@@ -1,7 +1,6 @@
 package ws
 
 import (
-	"fmt"
 	"github.com/redis/go-redis/v9"
 	"log"
 	"sync"
@@ -40,7 +39,7 @@ func NewWebSocketManager(id string, cap int, rdb *redis.Client, mq MessageQueue)
 
 // Register 使用 WebSocketManager 对 client 进行管理 & 接收客户端发送过来的所有消息
 func (m *WebSocketManager) Register(client *Client) {
-	var ret string
+	//var ret string
 	var err error
 	var msg Message
 
@@ -53,22 +52,23 @@ func (m *WebSocketManager) Register(client *Client) {
 
 	// 2.读取来自客户端的消息 & 进行分发 (发布到消息队列 or 当前管理器的消息通道)
 	for {
-		fmt.Printf("online population: %d\r", len(m.Clients))
+		//fmt.Printf("online population: %d\r", len(m.Clients))
 		msg, err = client.Read()
 		if err != nil { // 退出循环
 			log.Println("read data when registering, err:", err)
 			break
 		}
-		ret, err = m.ClientToServerMap.Get(msg.To)
-		if err != nil {
-			log.Println("get manager from client to server map, err:", err)
-			break
-		}
-		if ret == m.ID {
-			m.Messages <- msg
-		} else {
-			m.MessageQueue.Publish(ret, msg)
-		}
+		//ret, err = m.ClientToServerMap.Get(msg.To)
+		//if err != nil {
+		//	log.Println("get manager from client to server map, err:", err)
+		//	break
+		//}
+		//if ret == m.ID {
+		//	m.Messages <- msg
+		//} else {
+		//	m.MessageQueue.Publish(ret, msg)
+		//}
+		m.Messages <- msg
 	}
 }
 
