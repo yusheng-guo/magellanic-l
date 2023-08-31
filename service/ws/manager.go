@@ -238,10 +238,12 @@ func (m *WebSocketManager) HandlerMessage() {
 				echo = NewMessage(MessageTypeHeartbeat, []byte("success"), "", msg.From)
 				err = m.Clients[echo.To].Write(echo)
 			}
-		case MessageTypeOneToOne:
+		case MessageTypeOneOnOne:
 			// TODO: 私聊
+		case MessageTypeGroup:
+			// TODO: 群聊
 		case MessageTypeChannel:
-			// err = m.Channels[msg.To].Write(msg)
+		// err = m.Channels[msg.To].Write(msg)
 		case MessageTypeBroadcast:
 			err = m.Broadcast(msg)
 		case MessageTypeEcho:

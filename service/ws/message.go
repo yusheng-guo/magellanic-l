@@ -10,7 +10,8 @@ const (
 	MessageTypeRegister  MessageType = iota + 1 // 注册
 	MessageTypeLogout                           // 注销
 	MessageTypeHeartbeat                        // 心跳
-	MessageTypeOneToOne                         // 1 => 1                         //
+	MessageTypeOneOnOne                         // 一对一消息
+	MessageTypeGroup                            // 群信息
 	MessageTypeChannel                          // 频道消息
 	MessageTypeBroadcast                        // 广播消息
 	MessageTypeEcho                             // 广播消息
