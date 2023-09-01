@@ -1,7 +1,10 @@
 package ws
 
 import (
+	"errors"
+	"fmt"
 	"github.com/redis/go-redis/v9"
+	"io"
 	"log"
 	"sync"
 )
@@ -39,7 +42,6 @@ func NewWebSocketManager(id string, cap int, rdb *redis.Client, mq MessageQueue)
 
 // Register 使用 WebSocketManager 对 client 进行管理 & 接收客户端发送过来的所有消息
 func (m *WebSocketManager) Register(client *Client) {
-	//var ret string
 	var err error
 	var msg Message
 
@@ -50,24 +52,19 @@ func (m *WebSocketManager) Register(client *Client) {
 	}
 	m.Clients[client.UID] = client
 
+	fmt.Printf("----------------client [%s] register successfully----------------\n", client.UID)
 	// 2.读取来自客户端的消息 & 进行分发 (发布到消息队列 or 当前管理器的消息通道)
 	for {
-		//fmt.Printf("online population: %d\r", len(m.Clients))
+		// fmt.Printf("online population: %d\r", len(m.Clients))
 		msg, err = client.Read()
-		if err != nil { // 退出循环
-			log.Println("read data when registering, err:", err)
+		// 退出循环
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				log.Println("read data when registering, err:", err)
+			}
 			break
 		}
-		//ret, err = m.ClientToServerMap.Get(msg.To)
-		//if err != nil {
-		//	log.Println("get manager from client to server map, err:", err)
-		//	break
-		//}
-		//if ret == m.ID {
-		//	m.Messages <- msg
-		//} else {
-		//	m.MessageQueue.Publish(ret, msg)
-		//}
+
 		m.Messages <- msg
 	}
 }
@@ -91,6 +88,8 @@ func (m *WebSocketManager) Logout(uid string) {
 	for _, ch := range m.Channels {
 		delete(ch.Members, uid)
 	}
+
+	fmt.Printf("----------------client [%s] logout successfully----------------\n", uid)
 }
 
 // Broadcast 广播消息
@@ -113,30 +112,29 @@ func (m *WebSocketManager) ReceiveMessage() {
 	}
 }
 
-// HandlerMessage 处理消息
-func (m *WebSocketManager) HandlerMessage() {
+// HandleMessage 处理消息
+func (m *WebSocketManager) HandleMessage() {
 	var err error
 	var echo Message
 	for msg := range m.Messages {
 		switch msg.Type {
 		case MessageTypeRegister:
 			if m.IsManaged(msg.From) {
-				echo = NewMessage(MessageTypeRegister, []byte("success"), "", msg.From)
+				echo = NewMessage(MessageTypeRegister, []byte("register success"), "", msg.From)
 			} else {
-				echo = NewMessage(MessageTypeRegister, []byte("failed"), "", msg.From)
+				echo = NewMessage(MessageTypeRegister, []byte("failed register"), "", msg.From)
 			}
-			err = m.Clients[echo.To].Write(echo)
 		case MessageTypeLogout:
 			if m.IsManaged(msg.From) {
 				m.Logout(msg.From)
+				echo = NewMessage(MessageTypeEcho, []byte("logged out"), "", msg.From)
+			} else {
+				echo = NewMessage(MessageTypeEcho, []byte("logged out unmanaged client"), "", msg.From)
 			}
 		case MessageTypeHeartbeat:
-			if m.IsManaged(msg.From) {
-				echo = NewMessage(MessageTypeHeartbeat, []byte("success"), "", msg.From)
-				err = m.Clients[echo.To].Write(echo)
-			}
+			echo = NewMessage(MessageTypeHeartbeat, []byte("health"), "", msg.From)
 		case MessageTypeOneOnOne:
-			// TODO: 私聊
+			echo = msg
 		case MessageTypeGroup:
 			// TODO: 群聊
 		case MessageTypeChannel:
@@ -144,15 +142,14 @@ func (m *WebSocketManager) HandlerMessage() {
 		case MessageTypeBroadcast:
 			err = m.Broadcast(msg)
 		case MessageTypeEcho:
-			if m.IsManaged(msg.To) {
-				err = m.Clients[msg.To].Write(msg)
-			}
+			msg.To = msg.From
+			echo = msg
 		default:
 			echo = NewMessage(MessageTypeEcho, []byte("format err, can't parse"), "", msg.From)
-			err = m.Clients[echo.To].Write(echo)
 		}
+		err = m.SendMessage(echo)
 		if err != nil {
-			log.Println("handle message, err:", err)
+			log.Printf("handle message [%s], err: %s\n", msg.Content, err)
 		}
 	}
 }
@@ -165,4 +162,21 @@ func (m *WebSocketManager) PushMessage(msg Message) {
 func (m *WebSocketManager) IsManaged(uid string) bool {
 	_, ok := m.Clients[uid]
 	return ok
+}
+
+// SendMessage 发送消息
+func (m *WebSocketManager) SendMessage(msg Message) error {
+	if m.IsManaged(msg.To) {
+		if err := m.Clients[msg.To].Write(msg); err != nil {
+			return err
+		}
+	}
+
+	wid, err := m.ClientToServerMap.Get(msg.To)
+	if err != nil {
+		return err
+	}
+	m.MessageQueue.Publish(wid, msg)
+	//return errors.New("client is not managed")
+	return err
 }
