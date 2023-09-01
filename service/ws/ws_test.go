@@ -20,7 +20,7 @@ func Test(t *testing.T) {
 
 	sendMessage(ws, MessageTypeRegister, "register", "")
 	for i := 0; i < 5; i++ {
-		sendMessage(ws, MessageTypeOneOnOne, "hello", "5cc53d62-b6e9-44ae-b85e-e8fb27214de1")
+		sendMessage(ws, MessageTypeHeartbeat, "heartbeat", "")
 		time.Sleep(3 * time.Second)
 	}
 	sendMessage(ws, MessageTypeLogout, "logout", "")
@@ -40,9 +40,11 @@ func sendMessage(ws *websocket.Conn, t MessageType, text string, to string) {
 func receiveMessage(ws *websocket.Conn) {
 	var recv Message
 	var err error
-	err = websocket.JSON.Receive(ws, &recv)
-	if err != nil {
-		panic(err)
+	for {
+		err = websocket.JSON.Receive(ws, &recv)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("receive: %#v\n", string(recv.Content))
 	}
-	fmt.Printf("receive: %#v\n", string(recv.Content))
 }

@@ -126,7 +126,6 @@ func (m *WebSocketManager) HandleMessage() {
 			}
 		case MessageTypeLogout:
 			if m.IsManaged(msg.From) {
-				m.Logout(msg.From)
 				echo = NewMessage(MessageTypeEcho, []byte("logged out"), "", msg.From)
 			} else {
 				echo = NewMessage(MessageTypeEcho, []byte("logged out unmanaged client"), "", msg.From)

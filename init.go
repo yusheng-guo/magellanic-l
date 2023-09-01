@@ -14,6 +14,7 @@ func init() {
 	initialize.InitMongoDB()
 	initialize.InitTiDB()
 	initialize.InitRedis()
+	initialize.InitDGraph()
 
 	// 4.initial RabbitMQ
 	initialize.InitRabbitMQ()

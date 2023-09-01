@@ -11,7 +11,7 @@ var UserService = new(UserServiceT)
 
 // Login 登录
 func (s *UserServiceT) Login(params request.Login) (string, error) {
-	//db := global.App.MongoDB
+	//db := global.App.
 	return "", nil
 }
 

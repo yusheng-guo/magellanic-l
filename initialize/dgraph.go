@@ -11,7 +11,7 @@ import (
 
 func InitDGraph() {
 	// Create a connection to the Dgraph server
-	conn, err := grpc.Dial("localhost:9080", grpc.WithInsecure())
+	conn, err := grpc.Dial("119.91.204.226:9080", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalln("grpc dial :9080, err:", err)
 	}
