@@ -174,9 +174,14 @@ func (m *WebSocketManager) SendMessage(msg Message) error {
 
 	wid, err := m.ClientToServerMap.Get(msg.To)
 	if err != nil {
+		if errors.Is(err, ManagerNotExist) {
+			// TODO: 持久化
+			fmt.Println("save message")
+			return nil
+		}
 		return err
 	}
+
 	m.MessageQueue.Publish(wid, msg)
-	//return errors.New("client is not managed")
 	return err
 }

@@ -30,7 +30,7 @@ func InitWebSocketManager() {
 		for uid := range manager.Clients {
 			a[0].(*ws.WebSocketManager).Logout(uid)
 		}
-		log.Printf("log out all client of manager [%s]\n", manager.ID)
+		log.Printf("logout all client of manager [%s]\n", manager.ID)
 	}, manager)
 	global.DeferTaskQueue = append(global.DeferTaskQueue, task)
 }

@@ -31,10 +31,18 @@ func (m *ClientToServerMap) Get(key string) (string, error) {
 	val, err := m.rdb.HGet(context.Background(), WebSocketClientToServerMap, key).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return "", errors.New(fmt.Sprintf("client [%s] not exist\n", key))
+			return "", ManagerNotExist
 		} else {
 			log.Fatalf("get manager of client [%s], err: %s\n", key, err)
 		}
 	}
 	return val, nil
+}
+
+const ManagerNotExist WebSocketManagerError = "manager not exist"
+
+type WebSocketManagerError string
+
+func (e WebSocketManagerError) Error() string {
+	return string(e)
 }
