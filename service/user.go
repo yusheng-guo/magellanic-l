@@ -11,11 +11,10 @@ var UserService = new(UserServiceT)
 
 // Login 登录
 func (s *UserServiceT) Login(params request.Login) (string, error) {
-	//db := global.App.
 	return "", nil
 }
 
+// Register 注册
 func (s *UserServiceT) Register(params request.Register) (string, error) {
-	//db := global.App.MongoDB
 	return "", nil
 }
