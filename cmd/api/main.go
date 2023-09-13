@@ -20,8 +20,25 @@ import (
 //go:generate go mod tidy
 //go:generate go mod download
 
+func setGinMode() {
+	switch os.Getenv("GOENV") {
+	case "prod":
+		fmt.Println("currently a production environment")
+		gin.SetMode(gin.ReleaseMode)
+	case "test":
+		fmt.Println("currently a test environment")
+		gin.SetMode(gin.TestMode)
+	default:
+		fmt.Println("currently a development environment")
+		gin.SetMode(gin.DebugMode)
+	}
+}
+
 func main() {
 	var err error
+
+	// set gin engine mode
+	setGinMode()
 	var r = gin.New()
 	handlers.Handler(r)
 
@@ -30,7 +47,7 @@ func main() {
 	// 启动服务
 	server := http.Server{
 		Addr:    ":9999",
-		Handler: global.App.Engine,
+		Handler: r,
 	}
 	go func() {
 		if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -50,10 +67,10 @@ func main() {
 	log.Println("server shutdown")
 
 	// 释放资源
-	ReleaseResources()
+	releaseResources()
 }
 
-func ReleaseResources() {
+func releaseResources() {
 	wg := sync.WaitGroup{}
 	wg.Add(len(global.DeferTaskQueue))
 	for _, deferTask := range global.DeferTaskQueue {

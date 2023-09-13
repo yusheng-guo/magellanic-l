@@ -3,7 +3,7 @@ package main
 import "github.com/yushengguo557/magellanic-l/initialize"
 
 func init() {
-	// 1.initial configs
+	// 1.initial config
 	initialize.InitConfig()
 
 	// 2.initial log
@@ -22,6 +22,6 @@ func init() {
 	// 5.initial websocket manager
 	initialize.InitWebSocketManager()
 
-	// 5.initial gin
-	initialize.InitEngine()
+	// 6.initial gin
+	//initialize.InitEngine()
 }

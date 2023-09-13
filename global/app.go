@@ -5,7 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/redis/go-redis/v9"
-	"github.com/yushengguo557/magellanic-l/configs"
+	"github.com/yushengguo557/magellanic-l/config"
 	"github.com/yushengguo557/magellanic-l/internal/ws"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
@@ -14,7 +14,7 @@ import (
 var App = new(Application)
 
 type Application struct {
-	Config           configs.Configuration
+	Config           config.Configuration
 	Log              *zap.Logger
 	Engine           *gin.Engine
 	MongoDB          *mongo.Client

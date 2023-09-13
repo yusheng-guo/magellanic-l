@@ -1,4 +1,4 @@
-package configs
+package config
 
 type Database struct {
 	Driver                string `mapstructure:"driver" yaml:"driver" json:"driver"`
