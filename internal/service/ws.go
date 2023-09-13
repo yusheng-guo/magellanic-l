@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/yushengguo557/magellanic-l/global"
-	"github.com/yushengguo557/magellanic-l/service/ws"
+	"github.com/yushengguo557/magellanic-l/internal/ws"
 	"golang.org/x/net/websocket"
 	"net/http"
 )

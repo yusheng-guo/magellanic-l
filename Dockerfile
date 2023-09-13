@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # Building the application
-RUN go build -o magellanic-l
+RUN go build -o magellanic-l ./cmd/api/
 
 # Starting our application
 # CMD ["go", "run", "main.go"]

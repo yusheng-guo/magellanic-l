@@ -1,4 +1,4 @@
-package config
+package configs
 
 type Configuration struct {
 	Database Database `mapstructure:"database" yaml:"database" json:"database"`

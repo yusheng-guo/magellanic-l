@@ -15,7 +15,7 @@ func InitTiDB() {
 		ServerName: "gateway01.us-west-2.prod.aws.tidbcloud.com",
 	})
 	if err != nil {
-		log.Fatalln("register config, err:", err)
+		log.Fatalln("register configs, err:", err)
 	}
 
 	db, err := sql.Open("mysql", "3udZ3FZAjbZEtk5.root:5D5y1IaUVQyht6dh@tcp(gateway01.us-west-2.prod.aws.tidbcloud.com:4000)/test?tls=tidb")

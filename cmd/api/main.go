@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/yushengguo557/magellanic-l/global"
-	"github.com/yushengguo557/magellanic-l/router"
+	"github.com/yushengguo557/magellanic-l/internal/handlers"
 	"log"
 	"net/http"
 	"os"
@@ -20,9 +22,10 @@ import (
 
 func main() {
 	var err error
+	var r = gin.New()
+	handlers.Handler(r)
 
-	// 定义路由
-	router.DefineRouter()
+	fmt.Println("starting magellanic-l service...")
 
 	// 启动服务
 	server := http.Server{
@@ -48,7 +51,6 @@ func main() {
 
 	// 释放资源
 	ReleaseResources()
-	global.App.Log.Info("hi")
 }
 
 func ReleaseResources() {

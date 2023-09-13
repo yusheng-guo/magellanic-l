@@ -1,9 +1,9 @@
-package v1
+package handlers
 
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/yushengguo557/magellanic-l/service"
+	"github.com/yushengguo557/magellanic-l/internal/service"
 )
 
 func WebSocket(c *gin.Context) {

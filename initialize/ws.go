@@ -3,7 +3,7 @@ package initialize
 import (
 	"github.com/google/uuid"
 	"github.com/yushengguo557/magellanic-l/global"
-	"github.com/yushengguo557/magellanic-l/service/ws"
+	"github.com/yushengguo557/magellanic-l/internal/ws"
 	"log"
 )
 
@@ -23,7 +23,7 @@ func InitWebSocketManager() {
 
 	// 3.赋值到全局变量
 	global.App.WebSocketManager = manager
-	log.Println("You successfully init websocket manager!")
+	log.Println("You successfully initialize websocket manager!")
 
 	// 4.注销当前管理器所有的客户端
 	task := global.NewDeferTask(func(a ...any) {
